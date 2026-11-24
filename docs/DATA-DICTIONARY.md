@@ -13,3 +13,13 @@ CSV按UTF-8 BOM、UTF-8、GB18030回退，保留逻辑记录结束行号；引�
 重复键为(id,version)，完全相同行去重；同键内容冲突则整组隔离，不取最后一行。行数对账：输入=采纳+隔离+空行+重复表头+完全重复。运行幂等键由输入字节、参数与规则版本计算。
 
 同一报告ID的多个版本先选最高version，再构建复检引用链；历史版本留作采信证据，不重复参与最终项目判定。
+
+## 加工处置（原料 → 成品）
+
+原料结论不得直接沿用于成品。加工记录 `process.csv` 字段：process_id、raw_batch、finished_batch、raw_product、finished_product、flow、process_type、edible_part、processed、method。因子库 `factors.csv` 按 (product, flow, process_type, edible_part, analyte) 登记加工因子（Decimal，须为正）。
+
+成品推算区间 = 原料区间 × 加工因子，两端分别相乘并保留区间开闭性质。成品限量按加工完成日 processed 落入标准半开区间 [start,end) 选择，方法须在成品标准适用范围内。判定沿用区间规则：上界≤限量PASS、下界>限量FAIL、其余UNCERTAIN；仅PASS可发布，其余进待重检。
+
+加工因子与流程必须来自同一产品范围：product、flow、process_type、edible_part 全部一致方可采用。同范围登记了其他项目因子而本项目缺失判 SCOPE；该范围在因子库完全无登记判 NO_FACTOR；同范围同项目因子不唯一判 FACTOR_CONFLICT；原料批次无采纳证据判 NO_EVIDENCE；成品限量缺失/重叠判 NO_LIMIT、方法不适用判 METHOD。以上情形只进待重检（HOLD），保留原料证据（basis=RAW_EVIDENCE_ONLY），不给成品推算区间。
+
+处置幂等键为 (process_id, analyte)，重跑同一加工来源不新增处置项。加工录入对账与原料账同口径：输入行=采纳+隔离+空行+重复表头+完全重复。处置账按 run 留痕，中断可恢复旧版，恢复动作追加留痕，原始原料与加工记录不删除。

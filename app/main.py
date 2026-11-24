@@ -5,7 +5,7 @@ from app.errors import DomainError
 from app.workflow import run,load
 from app import store
 from app.web import payload
-from app.modules.m7_archive.export_out import bundle
+from app.modules.m7_archive.export_out import bundle,process_ledger
 
 def create_app():
     app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=2_000_000
@@ -35,6 +35,21 @@ def create_app():
         state=store.get(run_id)
         if not state.get('reconcile',{}).get('balanced'):raise DomainError('UNBALANCED','对账未平')
         return Response(bundle(state),mimetype='text/csv; charset=utf-8',headers={'Content-Disposition':'attachment; filename=evidence.csv'})
+    @app.get('/api/archive/<run_id>/process-ledger.csv')
+    def process_download(run_id):
+        state=store.get(run_id)
+        process=state.get('process')
+        if not process:raise DomainError('NOT_FOUND','加工处置账不存在',404)
+        if not process.get('balanced'):raise DomainError('UNBALANCED','加工对账未平')
+        return Response(process_ledger(state),mimetype='text/csv; charset=utf-8',headers={'Content-Disposition':'attachment; filename=process-ledger.csv'})
+    @app.get('/api/runs/<run_id>/process-versions')
+    def process_versions(run_id):
+        return jsonify(store.process_versions(run_id))
+    @app.post('/api/runs/<run_id>/process-restore')
+    def process_restore(run_id):
+        data=request.get_json(silent=True) or {}
+        if not isinstance(data.get('version'),int):raise DomainError('VERSION','请提交处置版本')
+        return jsonify(store.restore_process(run_id,data['version']))
     with app.app_context():
         if not store.history():
             state=run(load('dirty.csv'),{});store.save(state['run_id'],state)

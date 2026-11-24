@@ -12,6 +12,7 @@
 | M4 检出量换算 | 查看并复算检出量换算 | `/api/m4_segments` | `app/modules/m4_segments/rules.py` | `tests/test_segments.py` |
 | M5 复检裁决 | 查看并复算复检裁决 | `/api/m5_calculate` | `app/modules/m5_calculate/rules.py` | `tests/test_calculate.py` |
 | M6 批次判级 | 查看并复算批次判级 | `/api/m6_reconcile` | `app/modules/m6_reconcile/compare.py` | `tests/test_reconcile.py` |
+| M8 加工处置 | 查看并复算原料到成品处置 | `/api/m8_process` | `app/modules/m8_process/rules.py` | `tests/test_process.py` |
 | M7 报告归档 | 查看并复算报告归档 | `/api/m7_archive` | `app/modules/m7_archive/export_out.py` | `tests/test_archive.py` |
 
 ## 陷阱登记
@@ -32,6 +33,11 @@
 | TRAP-15 | ug/kg与mg/kg | 差1000倍 | 浓度统一mg/kg | `app/modules/m4_segments/rules.py` | `tests/test_segments.py::test_unit_conversion` |
 | TRAP-25 | 标准时间边界 | 双版或错版 | 采样日半开区间选版 | `app/modules/m3_versions/standards.py` | `tests/test_versions.py::test_halfopen_effective` |
 | TRAP-20 | 复检引用环 | 遍历无法结束 | 引用路径检测 | `app/modules/m5_calculate/rules.py` | `tests/test_calculate.py::test_cycle_rejected` |
+| TRAP-30 | 原料结论直接沿用成品 | 忽略烘干浓缩影响 | 同范围因子推算区间 | `app/modules/m8_process/rules.py` | `tests/test_process.py::test_release_uses_process_factor_within_same_scope` |
+| TRAP-31 | 跨流程借用加工因子 | 范围不匹配仍出结论 | 四维度同范围匹配，否则HOLD | `app/modules/m8_process/factors.py` | `tests/test_process.py::test_factor_must_share_full_product_scope` |
+| TRAP-32 | 浓缩放大后误放行 | 点值超限仍发布 | 推算FAIL/UNCERTAIN进待重检 | `app/modules/m8_process/rules.py` | `tests/test_process.py::test_concentration_factor_amplifies_and_fails` |
+| TRAP-33 | 重跑加工来源新增处置 | 处置项膨胀 | (process_id,analyte)幂等+留痕去重 | `app/store.py` | `tests/test_process.py::test_no_new_disposition_on_rerun_same_source` |
+| TRAP-34 | 处置中断无法回退 | 覆盖旧版丢失结论 | 处置版本留痕与恢复 | `app/store.py` | `tests/test_process.py::test_process_version_trace_and_restore` |
 
 ## 对账规则
 

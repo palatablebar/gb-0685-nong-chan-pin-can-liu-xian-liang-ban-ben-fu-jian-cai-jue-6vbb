@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="slips">
+  <section class="panel wide">
+    <header><h2>加工处置裁决</h2><span>{{data.process.business.total}} 项 · 加工对账 {{'相符' if data.process.balanced else '待复核'}}</span></header>
+    <div class="grade-grid">
+      <article><div><b>{{data.process.business.release}}</b><span>可发布成品项目</span></div><strong class="grade pass">可发布</strong></article>
+      <article><div><b>{{data.process.business.hold}}</b><span>待重检成品项目</span></div><strong class="grade fail">待重检</strong></article>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>处置编号</th><th>成品批次</th><th>成品</th><th>原料批</th><th>项目</th><th>原料区间</th><th>因子</th><th>成品区间</th><th>限量</th><th>结论</th><th>原因</th><th>依据</th></tr></thead>
+        <tbody>
+        {% for r in data.process.dispositions %}
+          <tr>
+            <td>{{r.disposition_id}}</td><td>{{r.finished_batch}}</td><td>{{r.finished_product}}</td><td>{{r.raw_batch}}</td><td>{{r.analyte}}</td>
+            <td class="num">{% if r.raw_lower is none %}—{% else %}{{r.raw_lower}} ~ {{r.raw_upper}}{% endif %}</td>
+            <td class="num">{{r.factor or '—'}}</td>
+            <td class="num">{% if r.finished_lower is none %}—{% else %}{{r.finished_lower}} ~ {{r.finished_upper}}{% endif %}</td>
+            <td class="num">{{r.limit or '—'}}</td>
+            <td><span class="verdict {{'pass' if r.disposition=='RELEASE' else 'fail'}}">{{'可发布' if r.disposition=='RELEASE' else '待重检'}}</span></td>
+            <td>{% if r.reason %}<span class="reject">{{r.reason}}</span>{% else %}—{% endif %}</td>
+            <td>{{r.basis}}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="signature">
+      <a href="/api/archive/{{run.run_id}}/process-ledger.csv">下载加工处置账 CSV</a>
+      <a href="/api/archive/{{run.run_id}}/export.csv">下载完整封存账 CSV</a>
+    </div>
+  </section>
+  <section class="panel balance-slip">
+    <header><h2>加工录入账</h2></header>
+    <dl>
+      {% set accepted = data.process.intake.process_input - data.process.intake.process_quarantine|length - data.process.intake.process_blank - data.process.intake.process_headers - data.process.intake.process_duplicates %}
+      <dt>输入行</dt><dd>{{data.process.intake.process_input}}</dd>
+      <dt>采纳</dt><dd>{{accepted}}</dd>
+      <dt>隔离</dt><dd>{{data.process.intake.process_quarantine|length}}</dd>
+      <dt>空行</dt><dd>{{data.process.intake.process_blank}}</dd>
+      <dt>重复表头</dt><dd>{{data.process.intake.process_headers}}</dd>
+      <dt>完全重复</dt><dd>{{data.process.intake.process_duplicates}}</dd>
+    </dl>
+    <div class="balance">{{'核对相符' if data.process.balanced else '待复核'}}</div>
+    <form id="process-source">
+      <label>加工记录CSV（留空沿用 process.csv）<textarea name="process_csv" rows="5" placeholder="粘贴加工处置记录"></textarea></label>
+      <button>重新提交加工账</button>
+    </form>
+  </section>
+  <section class="panel quarantine-slip">
+    <header><h2>加工隔离签</h2><span>{{data.process.intake.process_quarantine|length}} 条</span></header>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>行</th><th>记录ID</th><th>原因</th></tr></thead>
+        <tbody>
+        {% for q in data.process.intake.process_quarantine %}
+          <tr><td class="num">{{q.line}}</td><td>{{q.id}}</td><td><span class="reject" title="{{q.raw}}">{{q.code}}</span></td></tr>
+        {% else %}
+          <tr><td colspan="3">无隔离加工记录</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="slip-tail">证据 / PROCESS SOURCE</div>
+  </section>
+  <section class="panel balance-slip">
+    <header><h2>处置版本与中断恢复</h2></header>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>版本</th><th>留痕时间(UTC)</th><th>操作</th></tr></thead>
+        <tbody id="process-versions"><tr><td colspan="3">加载中…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="slip-tail">同加工来源重跑不新增处置项；中断可恢复任一旧版，原始原料与加工记录保留</div>
+  </section>
+</div>
+<script>
+const runId={{run.run_id|tojson}};
+async function loadVersions(){
+  try{
+    const r=await fetch('/api/runs/'+runId+'/process-versions');const rows=await r.json();
+    const tb=document.getElementById('process-versions');
+    if(!rows.length){tb.innerHTML='<tr><td colspan="3">暂无留痕版本</td></tr>';return;}
+    tb.innerHTML=rows.map(v=>'<tr><td class="num">V'+v.version+'</td><td>'+v.created+'</td><td><button data-v="'+v.version+'" class="restore-btn">恢复此版</button></td></tr>').join('');
+    tb.querySelectorAll('.restore-btn').forEach(b=>b.addEventListener('click',async()=>{
+      if(!confirm('恢复到处置版本 V'+b.dataset.v+'？当前处置账将被旧版覆盖，原料与加工记录保留。'))return;
+      const resp=await fetch('/api/runs/'+runId+'/process-restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:Number(b.dataset.v)})});
+      const data=await resp.json();
+      if(!resp.ok){document.getElementById('status-message').textContent=data.message;return;}
+      location.reload();
+    }));
+  }catch(e){document.getElementById('status-message').textContent='处置版本加载失败';}
+}
+loadVersions();
+document.getElementById('process-source').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const text=new FormData(event.target).get('process_csv');
+  const body=text?{sample:'dirty.csv',parameters:{process_csv:text}}:{sample:'dirty.csv'};
+  const response=await fetch('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data=await response.json();
+  if(!response.ok){document.getElementById('status-message').textContent=data.message;return;}
+  location.reload();
+});
+</script>
+{% endblock %}

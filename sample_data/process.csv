@@ -1,0 +1,11 @@
+﻿process_id,raw_batch,finished_batch,raw_product,finished_product,flow,process_type,edible_part,processed,method
+PR001,B001,FP001,苹果,苹果干,烘干线A,烘干,全果,2026-08-05,LC-MS/MS
+PR002,B002,FP002,苹果,苹果干,烘干线A,烘干,全果,2026-08-05,LC-MS/MS
+PR003,B003,FP003,苹果,苹果清汁,浓缩线B,浓缩,清汁,2026-08-05,LC-MS/MS
+PR004,B004,FP004,苹果,苹果清汁,浓缩线B,浓缩,清汁,2026-08-05,LC-MS/MS
+PR005,B001,FP005,苹果,苹果清汁,浓缩线B,浓缩,果渣,2026-08-06,LC-MS/MS
+PR006,B002,FP006,苹果,苹果干,烘干线A,冻干,全果,2026-08-06,LC-MS/MS
+PR007,B003,FP007,苹果,苹果干,烘干线C,烘干,全果,2026-08-06,LC-MS/MS
+PR008,B901,FP008,苹果,苹果干,烘干线A,烘干,全果,2026-08-06,LC-MS/MS
+PR009,B002,FP009,苹果,苹果清汁,浓缩线B,浓缩,清汁,2026-08-06,GC-MS
+short,x
